@@ -47,12 +47,19 @@
             background-color: #1a202c;
             color: #e2e8f0;
             font-family: 'SF Mono', 'Courier New', Courier, monospace;
-            white-space: pre; /* Use pre for better code formatting */
+            white-space: pre;
             overflow-x: auto;
-            font-size: 0.875rem; /* 14px */
+            font-size: 0.875rem;
         }
         .explanation-box {
-            background-color: #2d3748; /* A slightly lighter shade */
+            background-color: #2d3748;
+        }
+        .code-line {
+            transition: background-color 0.5s ease;
+        }
+        .line-highlight {
+            background-color: rgba(59, 130, 246, 0.3);
+            border-left: 2px solid #3b82f6;
         }
     </style>
 </head>
@@ -165,7 +172,7 @@
         </div>
     </section>
     
-    <!-- Section 5: Code Explained (NEW FULL CODE VERSION) -->
+    <!-- Section 5: Code Explained -->
     <section id="code" class="section flex flex-col items-center justify-start p-8 bg-gray-900">
         <h2 class="text-4xl font-bold text-white mb-8 text-center">Code Explained: A Line-by-Line Walkthrough</h2>
         <div class="container mx-auto space-y-8">
@@ -185,12 +192,7 @@ struct SubArray {
 };</code></div>
                 <div class="explanation-box p-6 rounded-lg">
                     <h3 class="font-bold text-xl text-green-400 mb-2">Part 1: Setup & Configuration</h3>
-                    <p>This initial block sets up the environment.</p>
-                    <ul class="list-disc list-inside mt-2 space-y-2">
-                        <li><b class="text-yellow-300">#include:</b> Imports necessary libraries for I/O, data structures, and the CUDA runtime.</li>
-                        <li><b class="text-yellow-300">#define:</b> Defines constants. `INSERTION_SORT_THRESHOLD` is a key tuning parameter for performance.</li>
-                        <li><b class="text-yellow-300">struct SubArray:</b> A simple data structure to hold a sorting task (the start and end indices of a subarray).</li>
-                    </ul>
+                    <p>This initial block sets up the environment and defines key constants and data structures.</p>
                 </div>
             </div>
 
@@ -207,59 +209,29 @@ __device__ void insertion_sort(...) { ... }
 __device__ int partition(...) { ... }</code></div>
                 <div class="explanation-box p-6 rounded-lg">
                     <h3 class="font-bold text-xl text-green-400 mb-2">Part 2: Device Helper Functions</h3>
-                    <p>The `__device__` keyword means these functions are compiled to run on the GPU. They are the tools each worker thread uses.</p>
-                    <ul class="list-disc list-inside mt-2 space-y-2">
-                        <li><b class="text-yellow-300">swap:</b> A basic utility to swap two numbers.</li>
-                        <li><b class="text-yellow-300">insertion_sort:</b> A simple sort that is very fast for small arrays. Used to finish off tiny tasks.</li>
-                        <li><b class="text-yellow-300">partition:</b> The core Quicksort logic. It rearranges a subarray around a pivot element.</li>
-                    </ul>
+                    <p>These `__device__` functions are the tools each GPU thread uses to perform the sort.</p>
                 </div>
             </div>
             
-            <!-- Block 3: The Full Kernel -->
+            <!-- Block 3: The Full Kernel with Dry Run -->
             <div class="grid md:grid-cols-2 gap-4">
-                <div class="code-block p-4 rounded-lg"><code>__global__ void parallel_quicksort_kernel(...) {
-    while (*sorted_count < n) {
-        int current_stack_pos = atomicSub(stack_top, 1);
-        
-        if (current_stack_pos > 0) {
-            SubArray task = stack[current_stack_pos - 1];
-            int low = task.low;
-            int high = task.high;
-
-            while (low < high) {
-                if ((high - low + 1) < INSERTION_SORT_THRESHOLD) {
-                    insertion_sort(arr, low, high);
-                    atomicAdd(sorted_count, high - low + 1);
-                    break; 
-                }
-
-                int pivot_index = partition(arr, low, high);
-                atomicAdd(sorted_count, 1);
-
-                if ((pivot_index - 1 - low) > (high - (pivot_index + 1))) {
-                    // Push left part, process right
-                    atomicAdd(stack_top, 1);
-                    low = pivot_index + 1;
-                } else {
-                    // Push right part, process left
-                    atomicAdd(stack_top, 1);
-                    high = pivot_index - 1;
-                }
-            }
-            if(low == high) { atomicAdd(sorted_count, 1); }
-        }
-    }
-}</code></div>
+                <div id="kernel-code-block" class="code-block p-4 rounded-lg"><code><div id="line-0" class="code-line">__global__ void parallel_quicksort_kernel(...) {</div><div id="line-1" class="code-line">    while (*sorted_count < n) {</div><div id="line-2" class="code-line">        int pos = atomicSub(stack_top, 1);</div><div id="line-3" class="code-line">        </div><div id="line-4" class="code-line">        if (pos > 0) {</div><div id="line-5" class="code-line">            SubArray task = stack[pos - 1];</div><div id="line-6" class="code-line">            int low = task.low;</div><div id="line-7" class="code-line">            int high = task.high;</div><div id="line-8" class="code-line">            </div><div id="line-9" class="code-line">            while (low < high) {</div><div id="line-10" class="code-line">                if ((high-low+1) < THRESHOLD) {</div><div id="line-11" class="code-line">                    insertion_sort(arr, low, high);</div><div id="line-12" class="code-line">                    atomicAdd(sorted_count, ...);</div><div id="line-13" class="code-line">                    break; </div><div id="line-14" class="code-line">                }</div><div id="line-15" class="code-line">                </div><div id="line-16" class="code-line">                int pivot = partition(arr, low, high);</div><div id="line-17" class="code-line">                atomicAdd(sorted_count, 1);</div><div id="line-18" class="code-line">                </div><div id="line-19" class="code-line">                if (left_size > right_size) {</div><div id="line-20" class="code-line">                    atomicAdd(stack_top, 1);</div><div id="line-21" class="code-line">                    low = pivot + 1;</div><div id="line-22" class="code-line">                } else { ... }</div><div id="line-23" class="code-line">            }</div><div id="line-24" class="code-line">            if(low == high) { ... }</div><div id="line-25" class="code-line">        }</div><div id="line-26" class="code-line">    }</div><div id="line-27" class="code-line">}</div></code></div>
                 <div class="explanation-box p-6 rounded-lg">
-                    <h3 class="font-bold text-xl text-green-400 mb-2">Part 3: The Kernel (The GPU's Brain)</h3>
-                    <p>The `__global__` function is the main entry point for the GPU threads. This is where the parallel logic lives.</p>
-                     <ul class="list-disc list-inside mt-2 space-y-2">
-                        <li><b>The Main Loop:</b> Threads continuously work until all elements are sorted.</li>
-                        <li><b>`atomicSub`:</b> A thread safely takes a task from the global stack. This is the "work-stealing" step.</li>
-                        <li><b>Process Task:</b> The thread partitions its subarray.</li>
-                        <li><b>`atomicAdd`:</b> The thread pushes the larger of the two new subarrays back onto the stack for another thread to find. This is the "delegate" step.</li>
-                    </ul>
+                    <h3 class="font-bold text-xl text-green-400 mb-2">Part 3: Kernel Live Dry Run</h3>
+                    <p class="text-sm mb-4">This animation shows how a thread executes the kernel logic on a small array.</p>
+                    
+                    <div id="dryRunThread" class="font-bold text-yellow-300 text-lg"></div>
+                    <div class="mt-2">
+                        <h4 class="font-semibold text-sm">Array State:</h4>
+                        <div id="dryRunArray" class="flex flex-wrap gap-1 mt-1"></div>
+                    </div>
+                    <div class="mt-2">
+                        <h4 class="font-semibold text-sm">Stack State:</h4>
+                        <div id="dryRunStack" class="space-y-1 mt-1 text-sm"></div>
+                    </div>
+                    <div class="mt-4 bg-gray-900 p-3 rounded">
+                        <p class="text-sm text-cyan-300" id="dryRunDescription"></p>
+                    </div>
                 </div>
             </div>
 
@@ -292,34 +264,8 @@ __device__ int partition(...) { ... }</code></div>
     return 0;
 }</code></div>
                 <div class="explanation-box p-6 rounded-lg">
-                    <h3 class="font-bold text-xl text-green-400 mb-2">Part 4: The Host (The CPU's Control Room)</h3>
+                    <h3 class="font-bold text-xl text-green-400 mb-2">Part 4: The Host (CPU Control)</h3>
                     <p>The `main` function runs on the CPU and manages the entire process from start to finish.</p>
-                     <ol class="list-decimal list-inside mt-2 space-y-2">
-                        <li><b>Setup:</b> Creates the array and a sorted copy for validation.</li>
-                        <li><b>`cudaMalloc`:</b> Reserves memory on the GPU's RAM.</li>
-                        <li><b>`cudaMemcpy`:</b> Copies the unsorted array to the GPU.</li>
-                        <li><b>Kernel Launch `<<<...>>>`:</b> This is the command that starts the thousands of threads running the kernel code on the GPU.</li>
-                        <li><b>Retrieve Result:</b> Copies the sorted array back from the GPU.</li>
-                        <li><b>Cleanup:</b> Frees the GPU memory.</li>
-                    </ol>
-                </div>
-            </div>
-
-            <!-- Live Walkthrough -->
-            <div class="mt-8">
-                <h3 class="text-2xl font-semibold mb-4 text-green-400">Live Walkthrough Animation</h3>
-                <div id="walkthrough" class="bg-gray-900 p-6 rounded-lg grid md:grid-cols-3 gap-6 items-start">
-                    <div class="md:col-span-2">
-                        <h4 class="font-bold mb-2">Array State</h4>
-                        <div id="array-container" class="flex flex-wrap gap-2"></div>
-                    </div>
-                    <div>
-                         <h4 class="font-bold mb-2">Stack (To-Do List)</h4>
-                         <div id="stack-container" class="space-y-2"></div>
-                    </div>
-                    <div class="md:col-span-3 text-center">
-                        <p id="step-description" class="text-lg text-yellow-300 h-12"></p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -341,55 +287,72 @@ __device__ int partition(...) { ... }</code></div>
     </section>
 
 <script>
-    // Live Walkthrough Animation Logic
-    const arrayContainer = document.getElementById('array-container');
-    const stackContainer = document.getElementById('stack-container');
-    const stepDescription = document.getElementById('step-description');
+    // Dry Run Animation Logic
+    const dryRunThread = document.getElementById('dryRunThread');
+    const dryRunArray = document.getElementById('dryRunArray');
+    const dryRunStack = document.getElementById('dryRunStack');
+    const dryRunDescription = document.getElementById('dryRunDescription');
+    const kernelCodeBlock = document.getElementById('kernel-code-block');
+    const codeLines = kernelCodeBlock.querySelectorAll('.code-line');
 
-    const initialArray = [8, 3, 1, 7, 0, 10, 2];
-    let steps = [
-        { array: [...initialArray], stack: [{low: 0, high: 6}], desc: "Initial state. One task to sort the entire array is on the stack.", highlights: [] },
-        { array: [1, 0, 2, 7, 8, 10, 3], stack: [{low: 3, high: 6}], desc: "Thread A partitions [0-6] with pivot 2. Pivot is now sorted.", highlights: [{index: 2}] },
-        { array: [0, 1, 2, 7, 8, 10, 3], stack: [{low: 3, high: 6}], desc: "Thread A sorts the small [0-1] part. Thread B starts working on [3-6].", highlights: [0, 1, 2].map(i => ({index: i})) },
-        { array: [0, 1, 2, 3, 8, 10, 7], stack: [{low: 4, high: 6}], desc: "Thread B partitions [3-6] with pivot 3. Pivot is now sorted.", highlights: [0, 1, 2, 3].map(i => ({index: i})) },
-        { array: [0, 1, 2, 3, 7, 10, 8], stack: [{low: 5, high: 6}], desc: "A thread partitions [4-6] with pivot 8. Pivot is now sorted.", highlights: [0, 1, 2, 3, 6].map(i => ({index: i})) },
-        { array: [0, 1, 2, 3, 7, 8, 10], stack: [], desc: "Final small parts are sorted. The stack is empty. Sorting is complete!", highlights: [0, 1, 2, 3, 4, 5, 6].map(i => ({index: i})) }
+    const dryRunSteps = [
+        { thread: "Thread A", line: 2, array: [7, 2, 1, 6], stack: [{low: 0, high: 3}], desc: "Grabs task [0-3] from the stack." },
+        { thread: "Thread A", line: 16, array: [7, 2, 1, 6], stack: [], desc: "Partitions with pivot 6. Array becomes [1, 2, 6, 7]." },
+        { thread: "Thread A", line: 17, array: [1, 2, 6, 7], stack: [], desc: "Pivot 6 is sorted. Increment sorted count.", highlights: [{index: 2, color: 'sorted'}] },
+        { thread: "Thread A", line: 20, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Pushes larger part [3-3] to stack.", highlights: [{index: 2, color: 'sorted'}] },
+        { thread: "Thread A", line: 21, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Loops to process smaller part [0-1].", highlights: [{index: 2, color: 'sorted'}] },
+        { thread: "Thread B", line: 2, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Meanwhile, Thread B grabs task [3-3].", highlights: [{index: 2, color: 'sorted'}] },
+        { thread: "Thread A", line: 10, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Subarray [0-1] is small, enters threshold block.", highlights: [{index: 2, color: 'sorted'}] },
+        { thread: "Thread A", line: 11, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Runs insertion_sort on [1, 2].", highlights: [{index: 2, color: 'sorted'}] },
+        { thread: "Thread A", line: 12, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Adds 2 to sorted_count. Task finished.", highlights: [{index: 0, color: 'sorted'}, {index: 1, color: 'sorted'}, {index: 2, color: 'sorted'}] },
+        { thread: "Thread B", line: 24, array: [1, 2, 6, 7], stack: [], desc: "Task [3-3] is a single element. Adds 1 to sorted_count.", highlights: [0,1,2,3].map(i=>({index:i}))},
     ];
 
-    let currentStep = 0;
+    let currentDryRunStep = 0;
 
-    function renderStep(stepIndex) {
-        const step = steps[stepIndex];
-        arrayContainer.innerHTML = '';
+    function renderDryRunStep(stepIndex) {
+        const step = dryRunSteps[stepIndex];
+        
+        dryRunThread.textContent = `Active Thread: ${step.thread}`;
+        dryRunDescription.textContent = step.desc;
+
+        // Render Array
+        dryRunArray.innerHTML = '';
         step.array.forEach((val, i) => {
             const el = document.createElement('div');
-            el.className = 'w-12 h-12 flex items-center justify-center rounded font-bold text-white transition-all duration-500';
-            const isHighlighted = step.highlights.some(h => h.index === i);
+            el.className = 'w-8 h-8 flex items-center justify-center rounded text-white text-xs font-bold transition-all duration-500';
+            const isHighlighted = step.highlights && step.highlights.some(h => h.index === i);
             el.classList.add(isHighlighted ? 'bg-green-600' : 'bg-gray-700');
             el.textContent = val;
-            arrayContainer.appendChild(el);
-});
+            dryRunArray.appendChild(el);
+        });
 
-        stackContainer.innerHTML = '';
+        // Render Stack
+        dryRunStack.innerHTML = '';
         if (step.stack.length === 0) {
-            stackContainer.innerHTML = '<div class="bg-gray-700 text-gray-400 p-2 rounded text-center">[Empty]</div>';
+            dryRunStack.innerHTML = '<div class="bg-gray-700 text-gray-400 p-1 rounded text-center">[Empty]</div>';
         } else {
             step.stack.forEach(task => {
                 const el = document.createElement('div');
-                el.className = 'bg-yellow-500 text-gray-900 p-2 rounded text-center font-semibold';
+                el.className = 'bg-yellow-500 text-gray-900 p-1 rounded text-center font-semibold';
                 el.textContent = `Sort [${task.low} - ${task.high}]`;
-                stackContainer.appendChild(el);
+                dryRunStack.appendChild(el);
             });
         }
-        stepDescription.textContent = step.desc;
+        
+        // Highlight code line
+        codeLines.forEach(line => line.classList.remove('line-highlight'));
+        if (document.getElementById(`line-${step.line}`)) {
+            document.getElementById(`line-${step.line}`).classList.add('line-highlight');
+        }
     }
 
     setInterval(() => {
-        currentStep = (currentStep + 1) % steps.length;
-        renderStep(currentStep);
-    }, 4000);
+        currentDryRunStep = (currentDryRunStep + 1) % dryRunSteps.length;
+        renderDryRunStep(currentDryRunStep);
+    }, 3000);
 
-    renderStep(0);
+    renderDryRunStep(0);
 </script>
 
 </body>
