@@ -217,8 +217,11 @@ __device__ int partition(...) { ... }</code></div>
             <div class="grid md:grid-cols-2 gap-4">
                 <div id="kernel-code-block" class="code-block p-4 rounded-lg"><code><div id="line-0" class="code-line">__global__ void parallel_quicksort_kernel(...) {</div><div id="line-1" class="code-line">    while (*sorted_count < n) {</div><div id="line-2" class="code-line">        int pos = atomicSub(stack_top, 1);</div><div id="line-3" class="code-line">        </div><div id="line-4" class="code-line">        if (pos > 0) {</div><div id="line-5" class="code-line">            SubArray task = stack[pos - 1];</div><div id="line-6" class="code-line">            int low = task.low;</div><div id="line-7" class="code-line">            int high = task.high;</div><div id="line-8" class="code-line">            </div><div id="line-9" class="code-line">            while (low < high) {</div><div id="line-10" class="code-line">                if ((high-low+1) < THRESHOLD) {</div><div id="line-11" class="code-line">                    insertion_sort(arr, low, high);</div><div id="line-12" class="code-line">                    atomicAdd(sorted_count, ...);</div><div id="line-13" class="code-line">                    break; </div><div id="line-14" class="code-line">                }</div><div id="line-15" class="code-line">                </div><div id="line-16" class="code-line">                int pivot = partition(arr, low, high);</div><div id="line-17" class="code-line">                atomicAdd(sorted_count, 1);</div><div id="line-18" class="code-line">                </div><div id="line-19" class="code-line">                if (left_size > right_size) {</div><div id="line-20" class="code-line">                    atomicAdd(stack_top, 1);</div><div id="line-21" class="code-line">                    low = pivot + 1;</div><div id="line-22" class="code-line">                } else { ... }</div><div id="line-23" class="code-line">            }</div><div id="line-24" class="code-line">            if(low == high) { ... }</div><div id="line-25" class="code-line">        }</div><div id="line-26" class="code-line">    }</div><div id="line-27" class="code-line">}</div></code></div>
                 <div class="explanation-box p-6 rounded-lg">
-                    <h3 class="font-bold text-xl text-green-400 mb-2">Part 3: Kernel Live Dry Run</h3>
-                    <p class="text-sm mb-4">This animation shows how a thread executes the kernel logic on a small array.</p>
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-xl text-green-400">Part 3: Kernel Live Dry Run</h3>
+                        <button id="restart-animation-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">Restart</button>
+                    </div>
+                    <p class="text-sm my-4">This animation shows how threads execute the kernel logic on a 7-element array.</p>
                     
                     <div id="dryRunThread" class="font-bold text-yellow-300 text-lg"></div>
                     <div class="mt-2">
@@ -287,28 +290,35 @@ __device__ int partition(...) { ... }</code></div>
     </section>
 
 <script>
-    // Dry Run Animation Logic
     const dryRunThread = document.getElementById('dryRunThread');
     const dryRunArray = document.getElementById('dryRunArray');
     const dryRunStack = document.getElementById('dryRunStack');
     const dryRunDescription = document.getElementById('dryRunDescription');
     const kernelCodeBlock = document.getElementById('kernel-code-block');
     const codeLines = kernelCodeBlock.querySelectorAll('.code-line');
+    const restartBtn = document.getElementById('restart-animation-btn');
 
     const dryRunSteps = [
-        { thread: "Thread A", line: 2, array: [7, 2, 1, 6], stack: [{low: 0, high: 3}], desc: "Grabs task [0-3] from the stack." },
-        { thread: "Thread A", line: 16, array: [7, 2, 1, 6], stack: [], desc: "Partitions with pivot 6. Array becomes [1, 2, 6, 7]." },
-        { thread: "Thread A", line: 17, array: [1, 2, 6, 7], stack: [], desc: "Pivot 6 is sorted. Increment sorted count.", highlights: [{index: 2, color: 'sorted'}] },
-        { thread: "Thread A", line: 20, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Pushes larger part [3-3] to stack.", highlights: [{index: 2, color: 'sorted'}] },
-        { thread: "Thread A", line: 21, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Loops to process smaller part [0-1].", highlights: [{index: 2, color: 'sorted'}] },
-        { thread: "Thread B", line: 2, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Meanwhile, Thread B grabs task [3-3].", highlights: [{index: 2, color: 'sorted'}] },
-        { thread: "Thread A", line: 10, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Subarray [0-1] is small, enters threshold block.", highlights: [{index: 2, color: 'sorted'}] },
-        { thread: "Thread A", line: 11, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Runs insertion_sort on [1, 2].", highlights: [{index: 2, color: 'sorted'}] },
-        { thread: "Thread A", line: 12, array: [1, 2, 6, 7], stack: [{low: 3, high: 3}], desc: "Adds 2 to sorted_count. Task finished.", highlights: [{index: 0, color: 'sorted'}, {index: 1, color: 'sorted'}, {index: 2, color: 'sorted'}] },
-        { thread: "Thread B", line: 24, array: [1, 2, 6, 7], stack: [], desc: "Task [3-3] is a single element. Adds 1 to sorted_count.", highlights: [0,1,2,3].map(i=>({index:i}))},
+        { thread: "Thread A", line: 2, array: [8, 3, 1, 7, 0, 10, 2], stack: [{low: 0, high: 6}], desc: "Grabs the initial task [0-6] from the stack." },
+        { thread: "Thread A", line: 16, array: [8, 3, 1, 7, 0, 10, 2], stack: [], desc: "Partitions with pivot 2. Array becomes [1, 0, 2, 7, 8, 10, 3]." },
+        { thread: "Thread A", line: 17, array: [1, 0, 2, 7, 8, 10, 3], stack: [], desc: "Pivot 2 is now sorted. Increment sorted count.", highlights: [{index: 2}] },
+        { thread: "Thread A", line: 20, array: [1, 0, 2, 7, 8, 10, 3], stack: [{low: 3, high: 6}], desc: "Pushes larger right part [3-6] to stack.", highlights: [{index: 2}] },
+        { thread: "Thread A", line: 21, array: [1, 0, 2, 7, 8, 10, 3], stack: [{low: 3, high: 6}], desc: "Loops to process smaller left part [0-1].", highlights: [{index: 2}] },
+        { thread: "Thread B", line: 2, array: [1, 0, 2, 7, 8, 10, 3], stack: [{low: 3, high: 6}], desc: "An idle thread (B) grabs task [3-6] from the stack.", highlights: [{index: 2}] },
+        { thread: "Thread A", line: 11, array: [0, 1, 2, 7, 8, 10, 3], stack: [], desc: "Thread A's task [0-1] is small, so it uses insertion_sort.", highlights: [{index: 2}] },
+        { thread: "Thread A", line: 12, array: [0, 1, 2, 7, 8, 10, 3], stack: [], desc: "Adds 2 to sorted_count. Thread A is now free.", highlights: [0, 1, 2].map(i => ({index: i})) },
+        { thread: "Thread B", line: 16, array: [0, 1, 2, 7, 8, 10, 3], stack: [], desc: "Thread B partitions its task [3-6] with pivot 3.", highlights: [0, 1, 2].map(i => ({index: i})) },
+        { thread: "Thread B", line: 17, array: [0, 1, 2, 3, 8, 10, 7], stack: [], desc: "Pivot 3 is sorted. Increment sorted count.", highlights: [0, 1, 2, 3].map(i => ({index: i})) },
+        { thread: "Thread B", line: 20, array: [0, 1, 2, 3, 8, 10, 7], stack: [{low: 4, high: 6}], desc: "Pushes new task [4-6] to stack. Thread B is free.", highlights: [0, 1, 2, 3].map(i => ({index: i})) },
+        { thread: "Thread C", line: 2, array: [0, 1, 2, 3, 8, 10, 7], stack: [{low: 4, high: 6}], desc: "A free thread (C) grabs task [4-6].", highlights: [0, 1, 2, 3].map(i => ({index: i})) },
+        { thread: "Thread C", line: 16, array: [0, 1, 2, 3, 7, 10, 8], stack: [], desc: "Partitions [4-6] with pivot 8. Pivot is sorted.", highlights: [0, 1, 2, 3, 6].map(i => ({index: i})) },
+        { thread: "Thread C", line: 20, array: [0, 1, 2, 3, 7, 10, 8], stack: [{low: 4, high: 5}], desc: "Pushes new task [4-5] to stack. Thread C is free.", highlights: [0, 1, 2, 3, 6].map(i => ({index: i})) },
+        { thread: "Thread D", line: 11, array: [0, 1, 2, 3, 7, 8, 10], stack: [], desc: "A free thread sorts small task [4-5].", highlights: [0, 1, 2, 3, 6].map(i => ({index: i})) },
+        { thread: "All Done", line: 1, array: [0, 1, 2, 3, 7, 8, 10], stack: [], desc: "Stack is empty. All elements are sorted!", highlights: [0, 1, 2, 3, 4, 5, 6].map(i => ({index: i})) }
     ];
 
     let currentDryRunStep = 0;
+    let animationInterval;
 
     function renderDryRunStep(stepIndex) {
         const step = dryRunSteps[stepIndex];
@@ -316,7 +326,6 @@ __device__ int partition(...) { ... }</code></div>
         dryRunThread.textContent = `Active Thread: ${step.thread}`;
         dryRunDescription.textContent = step.desc;
 
-        // Render Array
         dryRunArray.innerHTML = '';
         step.array.forEach((val, i) => {
             const el = document.createElement('div');
@@ -327,7 +336,6 @@ __device__ int partition(...) { ... }</code></div>
             dryRunArray.appendChild(el);
         });
 
-        // Render Stack
         dryRunStack.innerHTML = '';
         if (step.stack.length === 0) {
             dryRunStack.innerHTML = '<div class="bg-gray-700 text-gray-400 p-1 rounded text-center">[Empty]</div>';
@@ -340,19 +348,25 @@ __device__ int partition(...) { ... }</code></div>
             });
         }
         
-        // Highlight code line
         codeLines.forEach(line => line.classList.remove('line-highlight'));
         if (document.getElementById(`line-${step.line}`)) {
             document.getElementById(`line-${step.line}`).classList.add('line-highlight');
         }
     }
 
-    setInterval(() => {
-        currentDryRunStep = (currentDryRunStep + 1) % dryRunSteps.length;
-        renderDryRunStep(currentDryRunStep);
-    }, 3000);
+    function startAnimation() {
+        clearInterval(animationInterval);
+        currentDryRunStep = 0;
+        renderDryRunStep(0);
+        animationInterval = setInterval(() => {
+            currentDryRunStep = (currentDryRunStep + 1) % dryRunSteps.length;
+            renderDryRunStep(currentDryRunStep);
+        }, 2500);
+    }
 
-    renderDryRunStep(0);
+    restartBtn.addEventListener('click', startAnimation);
+
+    startAnimation();
 </script>
 
 </body>
