@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallel Quicksort with CUDA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth;
+        }
+        .section {
+            min-height: 100vh;
+            padding-top: 80px; /* Offset for sticky nav */
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .slide-in-left {
+            animation: slideInLeft 0.8s ease-out forwards;
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .slide-in-right {
+            animation: slideInRight 0.8s ease-out forwards;
+        }
+        .flowchart-box {
+            @apply text-center p-4 border-2 rounded-lg shadow-lg text-sm md:text-base;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .code-block {
+            background-color: #1a202c;
+            color: #e2e8f0;
+            font-family: 'SF Mono', 'Courier New', Courier, monospace;
+            white-space: pre; /* Use pre for better code formatting */
+            overflow-x: auto;
+        }
+        .explanation-box {
+            background-color: #2d3748; /* A slightly lighter shade */
+        }
+        .code-line-num {
+            color: #6b7280;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <!-- Sticky Navigation -->
+    <nav class="sticky top-0 z-50 bg-gray-900 bg-opacity-80 backdrop-blur-md shadow-lg">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <div class="text-xl font-bold text-white">Quicksort Explainer</div>
+            <div class="hidden md:flex space-x-6">
+                <a href="#problem" class="text-gray-300 hover:text-green-400">The Problem</a>
+                <a href="#algorithm" class="text-gray-300 hover:text-green-400">Algorithm</a>
+                <a href="#flowchart" class="text-gray-300 hover:text-green-400">Flowchart</a>
+                <a href="#code" class="text-gray-300 hover:text-green-400">Code Explained</a>
+                <a href="#conclusion" class="text-gray-300 hover:text-green-400">Conclusion</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="title" class="section flex flex-col items-center justify-center text-center p-8 bg-cover bg-center -mt-[68px]" style="background-image: linear-gradient(rgba(17, 24, 39, 0.8), rgba(17, 24, 39, 0.8)), url('https://placehold.co/1920x1080/111827/374151?text=GPU+Cores');">
+        <h1 class="text-5xl md:text-7xl font-bold text-white tracking-tight fade-in">Parallel Quicksort with CUDA</h1>
+        <p class="mt-4 text-xl md:text-2xl text-gray-300 fade-in" style="animation-delay: 0.2s;">Using a Global Stack for Dynamic Work Distribution</p>
+        <div class="mt-8 h-2 w-32 bg-green-500 rounded-full fade-in" style="animation-delay: 0.4s;"></div>
+    </section>
+
+    <!-- Section 2: The Problem -->
+    <section id="problem" class="section flex items-center justify-center p-8 bg-gray-800">
+        <div class="container mx-auto grid md:grid-cols-2 gap-12 items-center">
+            <div class="slide-in-left">
+                <h2 class="text-4xl font-bold text-white mb-6">The Problem: Why Parallel Sorting?</h2>
+                <ul class="space-y-4 text-lg text-gray-300">
+                    <li><span class="text-green-400 font-semibold">Fundamental Task:</span> Sorting is a core computing operation.</li>
+                    <li><span class="text-green-400 font-semibold">The Bottleneck:</span> For massive datasets, single-core CPU sorting is too slow.</li>
+                    <li><span class="text-green-400 font-semibold">The Goal:</span> Leverage thousands of GPU cores to sort data dramatically faster.</li>
+                    <li><span class="text-green-400 font-semibold">The Challenge:</span> How do we efficiently divide the work and keep all cores busy?</li>
+                </ul>
+            </div>
+            <div class="slide-in-right flex flex-col items-center justify-center space-y-8">
+                <div class="text-center">
+                    <div class="w-32 h-32 bg-blue-600 rounded-lg flex items-center justify-center shadow-2xl">
+                        <span class="font-bold text-white">CPU Core</span>
+                    </div>
+                    <p class="mt-2 font-semibold">Single, Powerful Core</p>
+                </div>
+                <div class="text-center">
+                     <div class="grid grid-cols-4 gap-2">
+                        <div class="w-10 h-10 bg-green-500 rounded"></div><div class="w-10 h-10 bg-green-500 rounded"></div><div class="w-10 h-10 bg-green-500 rounded"></div><div class="w-10 h-10 bg-green-500 rounded"></div><div class="w-10 h-10 bg-green-500 rounded"></div><div class="w-10 h-10 bg-green-500 rounded"></div><div class="w-10 h-10 bg-green-500 rounded"></div><div class="w-10 h-10 bg-green-500 rounded"></div>
+                     </div>
+                     <p class="mt-2 font-semibold">GPU (Thousands of Cores)</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: The Algorithm -->
+    <section id="algorithm" class="section flex items-center justify-center p-8 bg-gray-900">
+        <div class="container mx-auto grid md:grid-cols-2 gap-12 items-center">
+            <div class="slide-in-left">
+                <h2 class="text-4xl font-bold text-white mb-6">The Algorithm: A "To-Do List" Approach</h2>
+                <p class="text-lg text-gray-300 mb-4">We use a "divide and conquer" strategy with a shared to-do list, called a **stack**.</p>
+                <ol class="list-decimal list-inside space-y-3 text-lg text-gray-300">
+                    <li>Start with one task: "Sort the whole array".</li>
+                    <li>A thread grabs a task and **partitions** the array.</li>
+                    <li>It adds the <span class="font-bold text-yellow-400">LARGER</span> new part back to the to-do list.</li>
+                    <li>It immediately works on the <span class="font-bold text-blue-400">SMALLER</span> part.</li>
+                </ol>
+                <p class="mt-4 text-xl font-semibold text-green-400">This "work-stealing" model keeps all threads busy automatically!</p>
+            </div>
+            <div class="slide-in-right p-6 bg-gray-800 rounded-xl shadow-2xl">
+                <h3 class="text-center font-bold text-xl mb-4">GPU To-Do List (Stack)</h3>
+                <div class="space-y-3">
+                    <div class="bg-yellow-500 text-gray-900 p-4 rounded-lg shadow-lg text-center font-semibold">Task: Sort [N - Z]</div>
+                    <div class="bg-yellow-400 text-gray-900 p-4 rounded-lg shadow-lg text-center font-semibold">Task: Sort [M - P]</div>
+                    <div class="bg-gray-700 p-4 rounded-lg shadow-inner text-center text-gray-400">... more tasks ...</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 4: Flowchart -->
+    <section id="flowchart" class="section flex flex-col items-center justify-center p-8 bg-gray-800">
+        <h2 class="text-4xl font-bold text-white mb-12 text-center">Algorithm Flowchart</h2>
+        <div class="w-full max-w-5xl">
+            <div class="flex flex-col items-center space-y-8">
+                <div class="flowchart-box bg-green-600 border-green-400 w-48">Start</div>
+                <div class="h-8 border-l-2 border-gray-600"></div>
+                <div class="flowchart-box bg-blue-600 border-blue-400 w-64">Thread grabs task from Global Stack</div>
+                <div class="h-8 border-l-2 border-gray-600"></div>
+                <div class="flowchart-box bg-yellow-500 border-yellow-300 w-56">Is subarray large?</div>
+                <div class="w-full flex justify-center relative">
+                    <div class="absolute top-0 h-px w-2/3 bg-gray-600"></div>
+                    <div class="absolute top-0 left-[16.67%] w-px h-8 bg-gray-600"></div>
+                    <div class="absolute top-0 right-[16.67%] w-px h-8 bg-gray-600"></div>
+                </div>
+                <div class="w-full grid grid-cols-2 gap-32 pt-8">
+                    <div class="text-center">
+                        <p class="font-bold mb-2 text-red-400">No</p>
+                        <div class="flowchart-box bg-purple-600 border-purple-400 w-64 mx-auto">Insertion Sort (Finish Task)</div>
+                    </div>
+                    <div class="text-center">
+                        <p class="font-bold mb-2 text-green-400">Yes</p>
+                        <div class="flowchart-box bg-purple-600 border-purple-400 w-64 mx-auto">Partition Array</div>
+                        <div class="h-8 border-l-2 border-gray-600 mx-auto w-0"></div>
+                        <div class="flowchart-box bg-blue-600 border-blue-400 w-64 mx-auto">Push larger part to Stack & Process smaller part</div>
+                        <div class="mt-4 text-gray-400">...then loop back to grab next task</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Section 5: Code Explained (NEW DETAILED VERSION) -->
+    <section id="code" class="section flex flex-col items-center justify-start p-8 bg-gray-900">
+        <h2 class="text-4xl font-bold text-white mb-8 text-center">Code Explained: A Line-by-Line Walkthrough</h2>
+        <div class="container mx-auto space-y-8">
+
+            <!-- Block 1: Device Helpers -->
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="code-block p-4 rounded-lg"><code><span class="code-line-num">1 </span>struct SubArray { int low; int high; };
+<span class="code-line-num">2 </span>
+<span class="code-line-num">3 </span>__device__ void swap(int* a, int* b) { ... }
+<span class="code-line-num">4 </span>
+<span class="code-line-num">5 </span>__device__ void insertion_sort(...) { ... }
+<span class="code-line-num">6 </span>
+<span class="code-line-num">7 </span>__device__ int partition(...) { ... }
+</code></div>
+                <div class="explanation-box p-6 rounded-lg">
+                    <h3 class="font-bold text-xl text-green-400 mb-2">Device Helper Functions</h3>
+                    <p>These functions are the building blocks that run on each individual GPU thread.</p>
+                    <ul class="list-disc list-inside mt-2 space-y-2">
+                        <li><b class="text-yellow-300">SubArray:</b> A simple struct to hold the start and end indices of a sorting task.</li>
+                        <li><b class="text-yellow-300">swap:</b> A standard function to swap two elements in the array.</li>
+                        <li><b class="text-yellow-300">insertion_sort:</b> Used for small subarrays (e.g., < 32 elements). It's more efficient than Quicksort at this small scale.</li>
+                        <li><b class="text-yellow-300">partition:</b> The core of Quicksort. It takes a subarray, picks a pivot, and rearranges elements around it.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Block 2: The Kernel -->
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="code-block p-4 rounded-lg"><code><span class="code-line-num"> 8 </span>__global__ void parallel_quicksort_kernel(...) {
+<span class="code-line-num"> 9 </span>  while (*sorted_count < n) {
+<span class="code-line-num">10 </span>    int current_stack_pos = atomicSub(stack_top, 1);
+<span class="code-line-num">11 </span>    
+<span class="code-line-num">12 </span>    if (current_stack_pos > 0) {
+<span class="code-line-num">13 </span>      SubArray task = stack[current_stack_pos - 1];
+<span class="code-line-num">14 </span>      // ... main logic ...
+<span class="code-line-num">15 </span>    }
+<span class="code-line-num">16 </span>  }
+<span class="code-line-num">17 </span>}
+</code></div>
+                <div class="explanation-box p-6 rounded-lg">
+                    <h3 class="font-bold text-xl text-green-400 mb-2">The Kernel: Main Loop</h3>
+                    <p>This is the main function that every GPU thread executes simultaneously.</p>
+                    <ul class="list-disc list-inside mt-2 space-y-2">
+                        <li><b class="text-yellow-300">__global__:</b> This keyword marks the function as a "kernel," meaning it can be called from the CPU to run on the GPU.</li>
+                        <li><b class="text-yellow-300">while loop:</b> The main work loop. A thread only stops when the global `sorted_count` reaches the total number of elements `n`.</li>
+                        <li><b class="text-yellow-300">atomicSub:</b> The critical step! A thread safely "pops" a task from the stack. The atomic operation guarantees that no two threads can grab the same task, preventing race conditions.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Block 3: Kernel Logic -->
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="code-block p-4 rounded-lg"><code><span class="code-line-num">18 </span>while (low < high) {
+<span class="code-line-num">19 </span>  if (size < INSERTION_SORT_THRESHOLD) {
+<span class="code-line-num">20 </span>    insertion_sort(arr, low, high);
+<span class="code-line-num">21 </span>    atomicAdd(sorted_count, size);
+<span class="code-line-num">22 </span>    break; 
+<span class="code-line-num">23 </span>  }
+<span class="code-line-num">24 </span>
+<span class="code-line-num">25 </span>  int pivot_index = partition(arr, low, high);
+<span class="code-line-num">26 </span>  atomicAdd(sorted_count, 1);
+<span class="code-line-num">27 </span>
+<span class="code-line-num">28 </span>  // Push larger part to stack, process smaller
+<span class="code-line-num">29 </span>  if (left_size > right_size) {
+<span class="code-line-num">30 </span>    atomicAdd(stack_top, 1); // Push left
+<span class="code-line-num">31 </span>    low = pivot_index + 1;   // Process right
+<span class="code-line-num">32 </span>  } else { ... }
+<span class="code-line-num">33 </span>}
+</code></div>
+                <div class="explanation-box p-6 rounded-lg">
+                    <h3 class="font-bold text-xl text-green-400 mb-2">The Kernel: Processing a Task</h3>
+                    <p>Inside the `if` block, a thread processes the task it grabbed.</p>
+                     <ul class="list-disc list-inside mt-2 space-y-2">
+                        <li><b>Hybrid Strategy:</b> If the subarray is small, it switches to `insertion_sort` for efficiency.</li>
+                        <li><b>Partition:</b> It partitions the current subarray, which places one element (the pivot) in its final sorted position.</li>
+                        <li><b>Delegate & Continue:</b> It compares the two new subarrays created by the partition. The larger one is pushed back onto the global stack for another idle thread to find. The thread then continues its loop to work on the smaller subarray, reducing stack traffic.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Block 4: Host Code -->
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="code-block p-4 rounded-lg"><code><span class="code-line-num">34 </span>int main() {
+<span class="code-line-num">35 </span>  // 1. Allocate host memory (h_arr)
+<span class="code-line-num">36 </span>  //    and initialize with random data
+<span class="code-line-num">37 </span>
+<span class="code-line-num">38 </span>  // 2. Allocate device memory (d_arr)
+<span class="code-line-num">39 </span>  cudaMalloc((void**)&d_arr, ...);
+<span class="code-line-num">40 </span>  cudaMalloc((void**)&d_stack, ...);
+<span class="code-line-num">41 </span>
+<span class="code-line-num">42 </span>  // 3. Copy data from Host -> Device
+<span class="code-line-num">43 </span>  cudaMemcpy(d_arr, h_arr, ..., cudaMemcpyHostToDevice);
+<span class="code-line-num">44 </span>
+<span class="code-line-num">45 </span>  // 4. Launch the Kernel
+<span class="code-line-num">46 </span>  parallel_quicksort_kernel<<<...>>>(...);
+<span class="code-line-num">47 </span>
+<span class="code-line-num">48 </span>  // 5. Copy data from Device -> Host
+<span class="code-line-num">49 </span>  cudaMemcpy(h_gpu_result, d_arr, ..., cudaMemcpyDeviceToHost);
+<span class="code-line-num">50 </span>
+<span class="code-line-num">51 </span>  // 6. Validate results and cleanup
+<span class="code-line-num">52 </span>  cudaFree(d_arr);
+<span class="code-line-num">53 </span>}</code></div>
+                <div class="explanation-box p-6 rounded-lg">
+                    <h3 class="font-bold text-xl text-green-400 mb-2">The Host Code: The Manager</h3>
+                    <p>The `main` function runs on the CPU and orchestrates the entire operation.</p>
+                     <ol class="list-decimal list-inside mt-2 space-y-2">
+                        <li><b>Setup:</b> Creates the initial array on the CPU.</li>
+                        <li><b>Allocate GPU Memory:</b> `cudaMalloc` reserves space on the GPU's dedicated RAM for the array and the task stack.</li>
+                        <li><b>Transfer Data In:</b> The unsorted array is copied from the CPU's RAM to the GPU's RAM.</li>
+                        <li><b>Launch Kernel:</b> The `<<<...>>>` syntax launches thousands of threads on the GPU, all starting at the beginning of our kernel function. The CPU then waits.</li>
+                        <li><b>Transfer Data Out:</b> Once the GPU is finished, the now-sorted array is copied back to the CPU's RAM.</li>
+                        <li><b>Validate & Cleanup:</b> The CPU checks if the result is correct and frees the allocated GPU memory.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Live Walkthrough -->
+            <div class="mt-8">
+                <h3 class="text-2xl font-semibold mb-4 text-green-400">Live Walkthrough Animation</h3>
+                <div id="walkthrough" class="bg-gray-900 p-6 rounded-lg grid md:grid-cols-3 gap-6 items-start">
+                    <div class="md:col-span-2">
+                        <h4 class="font-bold mb-2">Array State</h4>
+                        <div id="array-container" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div>
+                         <h4 class="font-bold mb-2">Stack (To-Do List)</h4>
+                         <div id="stack-container" class="space-y-2"></div>
+                    </div>
+                    <div class="md:col-span-3 text-center">
+                        <p id="step-description" class="text-lg text-yellow-300 h-12"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 6: Conclusion -->
+    <section id="conclusion" class="section flex flex-col items-center justify-center text-center p-8 bg-gray-800">
+        <h2 class="text-4xl font-bold text-white mb-6">Performance & Conclusion</h2>
+        <div class="max-w-3xl mx-auto space-y-8">
+            <div>
+                <h3 class="text-2xl font-semibold text-green-400 mb-2">Results</h3>
+                <p class="text-lg text-gray-300">For small arrays (N < 100,000), CPU can be faster due to data transfer overhead. For large arrays, the GPU's parallelism provides a massive speedup.</p>
+            </div>
+            <div>
+                <h3 class="text-2xl font-semibold text-green-400 mb-2">Conclusion</h3>
+                <p class="text-lg text-gray-300">The global stack model is a powerful technique for **dynamic load balancing** in parallel algorithms. CUDA unlocks the massive power of GPUs for general-purpose tasks like sorting, making large-scale data processing feasible.</p>
+            </div>
+        </div>
+    </section>
+
+<script>
+    // Live Walkthrough Animation Logic
+    const arrayContainer = document.getElementById('array-container');
+    const stackContainer = document.getElementById('stack-container');
+    const stepDescription = document.getElementById('step-description');
+
+    const initialArray = [8, 3, 1, 7, 0, 10, 2];
+    let steps = [
+        { array: [...initialArray], stack: [{low: 0, high: 6}], desc: "Initial state. One task to sort the entire array is on the stack.", highlights: [] },
+        { array: [1, 0, 2, 7, 8, 10, 3], stack: [{low: 3, high: 6}], desc: "Thread A partitions [0-6] with pivot 2. Pivot is now sorted.", highlights: [{index: 2}] },
+        { array: [0, 1, 2, 7, 8, 10, 3], stack: [{low: 3, high: 6}], desc: "Thread A sorts the small [0-1] part. Thread B starts working on [3-6].", highlights: [0, 1, 2].map(i => ({index: i})) },
+        { array: [0, 1, 2, 3, 8, 10, 7], stack: [{low: 4, high: 6}], desc: "Thread B partitions [3-6] with pivot 3. Pivot is now sorted.", highlights: [0, 1, 2, 3].map(i => ({index: i})) },
+        { array: [0, 1, 2, 3, 7, 10, 8], stack: [{low: 5, high: 6}], desc: "A thread partitions [4-6] with pivot 8. Pivot is now sorted.", highlights: [0, 1, 2, 3, 6].map(i => ({index: i})) },
+        { array: [0, 1, 2, 3, 7, 8, 10], stack: [], desc: "Final small parts are sorted. The stack is empty. Sorting is complete!", highlights: [0, 1, 2, 3, 4, 5, 6].map(i => ({index: i})) }
+    ];
+
+    let currentStep = 0;
+
+    function renderStep(stepIndex) {
+        const step = steps[stepIndex];
+        arrayContainer.innerHTML = '';
+        step.array.forEach((val, i) => {
+            const el = document.createElement('div');
+            el.className = 'w-12 h-12 flex items-center justify-center rounded font-bold text-white transition-all duration-500';
+            const isHighlighted = step.highlights.some(h => h.index === i);
+            el.classList.add(isHighlighted ? 'bg-green-600' : 'bg-gray-700');
+            el.textContent = val;
+            arrayContainer.appendChild(el);
+        });
+
+        stackContainer.innerHTML = '';
+        if (step.stack.length === 0) {
+            stackContainer.innerHTML = '<div class="bg-gray-700 text-gray-400 p-2 rounded text-center">[Empty]</div>';
+        } else {
+            step.stack.forEach(task => {
+                const el = document.createElement('div');
+                el.className = 'bg-yellow-500 text-gray-900 p-2 rounded text-center font-semibold';
+                el.textContent = `Sort [${task.low} - ${task.high}]`;
+                stackContainer.appendChild(el);
+            });
+        }
+        stepDescription.textContent = step.desc;
+    }
+
+    setInterval(() => {
+        currentStep = (currentStep + 1) % steps.length;
+        renderStep(currentStep);
+    }, 4000);
+
+    renderStep(0);
+</script>
+
+</body>
+</html>
