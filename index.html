@@ -49,13 +49,10 @@
             font-family: 'SF Mono', 'Courier New', Courier, monospace;
             white-space: pre; /* Use pre for better code formatting */
             overflow-x: auto;
+            font-size: 0.875rem; /* 14px */
         }
         .explanation-box {
             background-color: #2d3748; /* A slightly lighter shade */
-        }
-        .code-line-num {
-            color: #6b7280;
-            user-select: none;
         }
     </style>
 </head>
@@ -168,119 +165,142 @@
         </div>
     </section>
     
-    <!-- Section 5: Code Explained (NEW DETAILED VERSION) -->
+    <!-- Section 5: Code Explained (NEW FULL CODE VERSION) -->
     <section id="code" class="section flex flex-col items-center justify-start p-8 bg-gray-900">
         <h2 class="text-4xl font-bold text-white mb-8 text-center">Code Explained: A Line-by-Line Walkthrough</h2>
         <div class="container mx-auto space-y-8">
 
-            <!-- Block 1: Device Helpers -->
+            <!-- Block 1: Headers & Config -->
             <div class="grid md:grid-cols-2 gap-4">
-                <div class="code-block p-4 rounded-lg"><code><span class="code-line-num">1 </span>struct SubArray { int low; int high; };
-<span class="code-line-num">2 </span>
-<span class="code-line-num">3 </span>__device__ void swap(int* a, int* b) { ... }
-<span class="code-line-num">4 </span>
-<span class="code-line-num">5 </span>__device__ void insertion_sort(...) { ... }
-<span class="code-line-num">6 </span>
-<span class="code-line-num">7 </span>__device__ int partition(...) { ... }
-</code></div>
+                <div class="code-block p-4 rounded-lg"><code>#include &lt;iostream&gt;
+#include &lt;vector&gt;
+// ... other includes
+
+#define INSERTION_SORT_THRESHOLD 32
+#define STACK_SIZE 1024
+
+struct SubArray {
+    int low;
+    int high;
+};</code></div>
                 <div class="explanation-box p-6 rounded-lg">
-                    <h3 class="font-bold text-xl text-green-400 mb-2">Device Helper Functions</h3>
-                    <p>These functions are the building blocks that run on each individual GPU thread.</p>
+                    <h3 class="font-bold text-xl text-green-400 mb-2">Part 1: Setup & Configuration</h3>
+                    <p>This initial block sets up the environment.</p>
                     <ul class="list-disc list-inside mt-2 space-y-2">
-                        <li><b class="text-yellow-300">SubArray:</b> A simple struct to hold the start and end indices of a sorting task.</li>
-                        <li><b class="text-yellow-300">swap:</b> A standard function to swap two elements in the array.</li>
-                        <li><b class="text-yellow-300">insertion_sort:</b> Used for small subarrays (e.g., < 32 elements). It's more efficient than Quicksort at this small scale.</li>
-                        <li><b class="text-yellow-300">partition:</b> The core of Quicksort. It takes a subarray, picks a pivot, and rearranges elements around it.</li>
+                        <li><b class="text-yellow-300">#include:</b> Imports necessary libraries for I/O, data structures, and the CUDA runtime.</li>
+                        <li><b class="text-yellow-300">#define:</b> Defines constants. `INSERTION_SORT_THRESHOLD` is a key tuning parameter for performance.</li>
+                        <li><b class="text-yellow-300">struct SubArray:</b> A simple data structure to hold a sorting task (the start and end indices of a subarray).</li>
                     </ul>
                 </div>
             </div>
 
-            <!-- Block 2: The Kernel -->
+            <!-- Block 2: Device Helpers -->
             <div class="grid md:grid-cols-2 gap-4">
-                <div class="code-block p-4 rounded-lg"><code><span class="code-line-num"> 8 </span>__global__ void parallel_quicksort_kernel(...) {
-<span class="code-line-num"> 9 </span>  while (*sorted_count < n) {
-<span class="code-line-num">10 </span>    int current_stack_pos = atomicSub(stack_top, 1);
-<span class="code-line-num">11 </span>    
-<span class="code-line-num">12 </span>    if (current_stack_pos > 0) {
-<span class="code-line-num">13 </span>      SubArray task = stack[current_stack_pos - 1];
-<span class="code-line-num">14 </span>      // ... main logic ...
-<span class="code-line-num">15 </span>    }
-<span class="code-line-num">16 </span>  }
-<span class="code-line-num">17 </span>}
-</code></div>
+                <div class="code-block p-4 rounded-lg"><code>__device__ void swap(int* a, int* b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+__device__ void insertion_sort(...) { ... }
+
+__device__ int partition(...) { ... }</code></div>
                 <div class="explanation-box p-6 rounded-lg">
-                    <h3 class="font-bold text-xl text-green-400 mb-2">The Kernel: Main Loop</h3>
-                    <p>This is the main function that every GPU thread executes simultaneously.</p>
+                    <h3 class="font-bold text-xl text-green-400 mb-2">Part 2: Device Helper Functions</h3>
+                    <p>The `__device__` keyword means these functions are compiled to run on the GPU. They are the tools each worker thread uses.</p>
                     <ul class="list-disc list-inside mt-2 space-y-2">
-                        <li><b class="text-yellow-300">__global__:</b> This keyword marks the function as a "kernel," meaning it can be called from the CPU to run on the GPU.</li>
-                        <li><b class="text-yellow-300">while loop:</b> The main work loop. A thread only stops when the global `sorted_count` reaches the total number of elements `n`.</li>
-                        <li><b class="text-yellow-300">atomicSub:</b> The critical step! A thread safely "pops" a task from the stack. The atomic operation guarantees that no two threads can grab the same task, preventing race conditions.</li>
+                        <li><b class="text-yellow-300">swap:</b> A basic utility to swap two numbers.</li>
+                        <li><b class="text-yellow-300">insertion_sort:</b> A simple sort that is very fast for small arrays. Used to finish off tiny tasks.</li>
+                        <li><b class="text-yellow-300">partition:</b> The core Quicksort logic. It rearranges a subarray around a pivot element.</li>
                     </ul>
                 </div>
             </div>
             
-            <!-- Block 3: Kernel Logic -->
+            <!-- Block 3: The Full Kernel -->
             <div class="grid md:grid-cols-2 gap-4">
-                <div class="code-block p-4 rounded-lg"><code><span class="code-line-num">18 </span>while (low < high) {
-<span class="code-line-num">19 </span>  if (size < INSERTION_SORT_THRESHOLD) {
-<span class="code-line-num">20 </span>    insertion_sort(arr, low, high);
-<span class="code-line-num">21 </span>    atomicAdd(sorted_count, size);
-<span class="code-line-num">22 </span>    break; 
-<span class="code-line-num">23 </span>  }
-<span class="code-line-num">24 </span>
-<span class="code-line-num">25 </span>  int pivot_index = partition(arr, low, high);
-<span class="code-line-num">26 </span>  atomicAdd(sorted_count, 1);
-<span class="code-line-num">27 </span>
-<span class="code-line-num">28 </span>  // Push larger part to stack, process smaller
-<span class="code-line-num">29 </span>  if (left_size > right_size) {
-<span class="code-line-num">30 </span>    atomicAdd(stack_top, 1); // Push left
-<span class="code-line-num">31 </span>    low = pivot_index + 1;   // Process right
-<span class="code-line-num">32 </span>  } else { ... }
-<span class="code-line-num">33 </span>}
-</code></div>
+                <div class="code-block p-4 rounded-lg"><code>__global__ void parallel_quicksort_kernel(...) {
+    while (*sorted_count < n) {
+        int current_stack_pos = atomicSub(stack_top, 1);
+        
+        if (current_stack_pos > 0) {
+            SubArray task = stack[current_stack_pos - 1];
+            int low = task.low;
+            int high = task.high;
+
+            while (low < high) {
+                if ((high - low + 1) < INSERTION_SORT_THRESHOLD) {
+                    insertion_sort(arr, low, high);
+                    atomicAdd(sorted_count, high - low + 1);
+                    break; 
+                }
+
+                int pivot_index = partition(arr, low, high);
+                atomicAdd(sorted_count, 1);
+
+                if ((pivot_index - 1 - low) > (high - (pivot_index + 1))) {
+                    // Push left part, process right
+                    atomicAdd(stack_top, 1);
+                    low = pivot_index + 1;
+                } else {
+                    // Push right part, process left
+                    atomicAdd(stack_top, 1);
+                    high = pivot_index - 1;
+                }
+            }
+            if(low == high) { atomicAdd(sorted_count, 1); }
+        }
+    }
+}</code></div>
                 <div class="explanation-box p-6 rounded-lg">
-                    <h3 class="font-bold text-xl text-green-400 mb-2">The Kernel: Processing a Task</h3>
-                    <p>Inside the `if` block, a thread processes the task it grabbed.</p>
+                    <h3 class="font-bold text-xl text-green-400 mb-2">Part 3: The Kernel (The GPU's Brain)</h3>
+                    <p>The `__global__` function is the main entry point for the GPU threads. This is where the parallel logic lives.</p>
                      <ul class="list-disc list-inside mt-2 space-y-2">
-                        <li><b>Hybrid Strategy:</b> If the subarray is small, it switches to `insertion_sort` for efficiency.</li>
-                        <li><b>Partition:</b> It partitions the current subarray, which places one element (the pivot) in its final sorted position.</li>
-                        <li><b>Delegate & Continue:</b> It compares the two new subarrays created by the partition. The larger one is pushed back onto the global stack for another idle thread to find. The thread then continues its loop to work on the smaller subarray, reducing stack traffic.</li>
+                        <li><b>The Main Loop:</b> Threads continuously work until all elements are sorted.</li>
+                        <li><b>`atomicSub`:</b> A thread safely takes a task from the global stack. This is the "work-stealing" step.</li>
+                        <li><b>Process Task:</b> The thread partitions its subarray.</li>
+                        <li><b>`atomicAdd`:</b> The thread pushes the larger of the two new subarrays back onto the stack for another thread to find. This is the "delegate" step.</li>
                     </ul>
                 </div>
             </div>
 
-            <!-- Block 4: Host Code -->
+            <!-- Block 4: The Host 'main' function -->
             <div class="grid md:grid-cols-2 gap-4">
-                <div class="code-block p-4 rounded-lg"><code><span class="code-line-num">34 </span>int main() {
-<span class="code-line-num">35 </span>  // 1. Allocate host memory (h_arr)
-<span class="code-line-num">36 </span>  //    and initialize with random data
-<span class="code-line-num">37 </span>
-<span class="code-line-num">38 </span>  // 2. Allocate device memory (d_arr)
-<span class="code-line-num">39 </span>  cudaMalloc((void**)&d_arr, ...);
-<span class="code-line-num">40 </span>  cudaMalloc((void**)&d_stack, ...);
-<span class="code-line-num">41 </span>
-<span class="code-line-num">42 </span>  // 3. Copy data from Host -> Device
-<span class="code-line-num">43 </span>  cudaMemcpy(d_arr, h_arr, ..., cudaMemcpyHostToDevice);
-<span class="code-line-num">44 </span>
-<span class="code-line-num">45 </span>  // 4. Launch the Kernel
-<span class="code-line-num">46 </span>  parallel_quicksort_kernel<<<...>>>(...);
-<span class="code-line-num">47 </span>
-<span class="code-line-num">48 </span>  // 5. Copy data from Device -> Host
-<span class="code-line-num">49 </span>  cudaMemcpy(h_gpu_result, d_arr, ..., cudaMemcpyDeviceToHost);
-<span class="code-line-num">50 </span>
-<span class="code-line-num">51 </span>  // 6. Validate results and cleanup
-<span class="code-line-num">52 </span>  cudaFree(d_arr);
-<span class="code-line-num">53 </span>}</code></div>
+                <div class="code-block p-4 rounded-lg"><code>int main() {
+    const int N = 1 &lt;&lt; 10;
+    std::vector&lt;int&gt; h_arr(N);
+    // ... initialize data ...
+    
+    // Sort on CPU for validation
+    std::sort(h_cpu_sorted.begin(), h_cpu_sorted.end());
+
+    // Allocate memory on GPU
+    int* d_arr;
+    cudaMalloc((void**)&d_arr, N * sizeof(int));
+    // ... malloc stack, etc. ...
+
+    // Copy data from Host to Device
+    cudaMemcpy(d_arr, h_arr.data(), ..., cudaMemcpyHostToDevice);
+
+    // Launch the Kernel on the GPU
+    parallel_quicksort_kernel&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;(...);
+    
+    // Copy sorted data from Device to Host
+    cudaMemcpy(h_gpu_result.data(), d_arr, ..., cudaMemcpyDeviceToHost);
+
+    // Validate and clean up
+    cudaFree(d_arr);
+    return 0;
+}</code></div>
                 <div class="explanation-box p-6 rounded-lg">
-                    <h3 class="font-bold text-xl text-green-400 mb-2">The Host Code: The Manager</h3>
-                    <p>The `main` function runs on the CPU and orchestrates the entire operation.</p>
+                    <h3 class="font-bold text-xl text-green-400 mb-2">Part 4: The Host (The CPU's Control Room)</h3>
+                    <p>The `main` function runs on the CPU and manages the entire process from start to finish.</p>
                      <ol class="list-decimal list-inside mt-2 space-y-2">
-                        <li><b>Setup:</b> Creates the initial array on the CPU.</li>
-                        <li><b>Allocate GPU Memory:</b> `cudaMalloc` reserves space on the GPU's dedicated RAM for the array and the task stack.</li>
-                        <li><b>Transfer Data In:</b> The unsorted array is copied from the CPU's RAM to the GPU's RAM.</li>
-                        <li><b>Launch Kernel:</b> The `<<<...>>>` syntax launches thousands of threads on the GPU, all starting at the beginning of our kernel function. The CPU then waits.</li>
-                        <li><b>Transfer Data Out:</b> Once the GPU is finished, the now-sorted array is copied back to the CPU's RAM.</li>
-                        <li><b>Validate & Cleanup:</b> The CPU checks if the result is correct and frees the allocated GPU memory.</li>
+                        <li><b>Setup:</b> Creates the array and a sorted copy for validation.</li>
+                        <li><b>`cudaMalloc`:</b> Reserves memory on the GPU's RAM.</li>
+                        <li><b>`cudaMemcpy`:</b> Copies the unsorted array to the GPU.</li>
+                        <li><b>Kernel Launch `<<<...>>>`:</b> This is the command that starts the thousands of threads running the kernel code on the GPU.</li>
+                        <li><b>Retrieve Result:</b> Copies the sorted array back from the GPU.</li>
+                        <li><b>Cleanup:</b> Frees the GPU memory.</li>
                     </ol>
                 </div>
             </div>
@@ -348,7 +368,7 @@
             el.classList.add(isHighlighted ? 'bg-green-600' : 'bg-gray-700');
             el.textContent = val;
             arrayContainer.appendChild(el);
-        });
+});
 
         stackContainer.innerHTML = '';
         if (step.stack.length === 0) {
