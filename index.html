@@ -83,7 +83,8 @@
     <section id="title" class="section flex flex-col items-center justify-center text-center p-8 bg-cover bg-center -mt-[68px]" style="background-image: linear-gradient(rgba(17, 24, 39, 0.8), rgba(17, 24, 39, 0.8)), url('https://placehold.co/1920x1080/111827/374151?text=GPU+Cores');">
         <h1 class="text-5xl md:text-7xl font-bold text-white tracking-tight fade-in">Parallel Quicksort with CUDA</h1>
         <p class="mt-4 text-xl md:text-2xl text-gray-300 fade-in" style="animation-delay: 0.2s;">Using a Global Stack for Dynamic Work Distribution</p>
-        <div class="mt-8 h-2 w-32 bg-green-500 rounded-full fade-in" style="animation-delay: 0.4s;"></div>
+        <p class="mt-6 text-lg text-gray-400 fade-in" style="animation-delay: 0.4s;">Done by Yashwenth S</p>
+        <div class="mt-8 h-2 w-32 bg-green-500 rounded-full fade-in" style="animation-delay: 0.6s;"></div>
     </section>
 
     <!-- Section 2: The Problem -->
@@ -361,7 +362,7 @@ __device__ int partition(...) { ... }</code></div>
         animationInterval = setInterval(() => {
             currentDryRunStep = (currentDryRunStep + 1) % dryRunSteps.length;
             renderDryRunStep(currentDryRunStep);
-        }, 2500);
+        }, 3500); // Slower animation speed (3.5 seconds per step)
     }
 
     restartBtn.addEventListener('click', startAnimation);
